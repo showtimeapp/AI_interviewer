@@ -6,6 +6,7 @@ import time
 import streamlit as st
 import tempfile
 
+st.set_page_config(layout="wide")
 # Initialize MediaPipe FaceMesh
 mp_face_mesh = mp.solutions.face_mesh
 face_mesh = mp_face_mesh.FaceMesh(min_detection_confidence=0.5, min_tracking_confidence=0.5)
@@ -119,14 +120,15 @@ def main():
             # Display in Streamlit
             stframe.image(frame, channels="BGR")
             # st.write(f"**Emotion:** {emotion} | **Focus Score:** {focus_score} | **No. of Faces:** {num_faces}")
-            df = pd.DataFrame(data_log, columns=["Emotion", "Focus Score", "No. of Faces"])
-            csv_file = tempfile.NamedTemporaryFile(delete=False, suffix=".csv").name
-            df.to_csv(csv_file, index=False)
+            
 
             if time.time() - start_time > 120:
                 break
 
         cap.release()
+        df = pd.DataFrame(data_log, columns=["Emotion", "Focus Score", "No. of Faces"])
+        csv_file = tempfile.NamedTemporaryFile(delete=False, suffix=".csv").name
+        df.to_csv(csv_file, index=False)
         st.success("Session complete! Download your focus analysis data below.")
         st.download_button("Download CSV", csv_file, "focus_analysis.csv")
         
