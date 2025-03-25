@@ -67,8 +67,6 @@ namex==0.0.8
 narwhals==1.32.0
 numpy==1.26.4
 onnxruntime==1.21.0
-opencv-contrib-python==4.11.0.86
-opencv-python==4.10.0.84
 opencv-python-headless==4.10.0.84
 opt_einsum==3.4.0
 optree==0.14.1
