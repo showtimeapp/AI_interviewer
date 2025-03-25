@@ -3,7 +3,6 @@ faster_whisper==1.1.1
 groq==0.20.0
 gTTS==2.5.4
 mediapipe==0.10.21
-opencv_contrib_python==4.10.0.84
 opencv_contrib_python==4.11.0.86
 opencv_python==4.10.0.84
 opencv_python==4.11.0.86
