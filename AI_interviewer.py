@@ -248,11 +248,11 @@ st.markdown("""
         word-wrap: break-word;
     }
     .user-bubble {
-        background-color: #d1e7dd;
+        background-color: #73fa97;
         align-self: flex-end;
     }
     .bot-bubble {
-        background-color: #f8d7da;
+        background-color: #dbed39;
         align-self: flex-start;
     }
     .input-box {
