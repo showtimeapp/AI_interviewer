@@ -106,7 +106,7 @@ def main():
     # st.title("🔍 Real-Time Focus Detection")
     # st.markdown("Detects engagement based on gaze & emotion.")
     
-    if st.button("Start Webcam"):
+    # if st.button("Start Webcam"):
         cap = cv2.VideoCapture(0)
         start_time = time.time()
         stframe = st.empty()
