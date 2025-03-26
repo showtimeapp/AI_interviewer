@@ -6,131 +6,131 @@ import time
 import streamlit as st
 import tempfile
 
-st.set_page_config(layout="wide")
-# Initialize MediaPipe FaceMesh
-mp_face_mesh = mp.solutions.face_mesh
-face_mesh = mp_face_mesh.FaceMesh(min_detection_confidence=0.5, min_tracking_confidence=0.5)
-mp_drawing = mp.solutions.drawing_utils
+# st.set_page_config(layout="wide")
+# # Initialize MediaPipe FaceMesh
+# mp_face_mesh = mp.solutions.face_mesh
+# face_mesh = mp_face_mesh.FaceMesh(min_detection_confidence=0.5, min_tracking_confidence=0.5)
+# mp_drawing = mp.solutions.drawing_utils
 
-# Engagement emotions
-FOCUSED_EMOTIONS = ["happy", "neutral", "surprise"]
-data_log = []  # To store data for CSV export
+# # Engagement emotions
+# FOCUSED_EMOTIONS = ["happy", "neutral", "surprise"]
+# data_log = []  # To store data for CSV export
 
-# Function to calculate gaze direction and head tilt
-def calculate_focus(face_landmarks, frame_width, frame_height):
-    left_eye_x = face_landmarks.landmark[33].x * frame_width  # Left eye corner
-    right_eye_x = face_landmarks.landmark[263].x * frame_width  # Right eye corner
-    nose_x = face_landmarks.landmark[1].x * frame_width  # Nose tip
-    nose_y = face_landmarks.landmark[1].y * frame_height  # Nose vertical position
-    chin_y = face_landmarks.landmark[152].y * frame_height  # Chin position
+# # Function to calculate gaze direction and head tilt
+# def calculate_focus(face_landmarks, frame_width, frame_height):
+#     left_eye_x = face_landmarks.landmark[33].x * frame_width  # Left eye corner
+#     right_eye_x = face_landmarks.landmark[263].x * frame_width  # Right eye corner
+#     nose_x = face_landmarks.landmark[1].x * frame_width  # Nose tip
+#     nose_y = face_landmarks.landmark[1].y * frame_height  # Nose vertical position
+#     chin_y = face_landmarks.landmark[152].y * frame_height  # Chin position
     
-    head_tilt = abs(nose_y - chin_y)
+#     head_tilt = abs(nose_y - chin_y)
     
-    if left_eye_x < nose_x < right_eye_x:
-        gaze_score = 100  # Looking at the screen
-    elif nose_x < left_eye_x:
-        gaze_score = 60  # Looking left
-    else:
-        gaze_score = 60  # Looking right
+#     if left_eye_x < nose_x < right_eye_x:
+#         gaze_score = 100  # Looking at the screen
+#     elif nose_x < left_eye_x:
+#         gaze_score = 60  # Looking left
+#     else:
+#         gaze_score = 60  # Looking right
     
-    # Adjust score based on head tilt
-    if head_tilt > frame_height * 0.05:
+#     # Adjust score based on head tilt
+#     if head_tilt > frame_height * 0.05:
 
-        gaze_score -= 20  # Reduce focus if head is tilted too much
+#         gaze_score -= 20  # Reduce focus if head is tilted too much
     
-    return max(0, gaze_score)
+#     return max(0, gaze_score)
 
-def analyze_focus(frame):
-    rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-    results = face_mesh.process(rgb_frame)
-    num_faces = 0
+# def analyze_focus(frame):
+#     rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+#     results = face_mesh.process(rgb_frame)
+#     num_faces = 0
     
-    if results.multi_face_landmarks:
-        num_faces = len(results.multi_face_landmarks)
-        for face_landmarks in results.multi_face_landmarks:
-            # Draw face landmarks
-            mp_drawing.draw_landmarks(frame, face_landmarks, mp_face_mesh.FACEMESH_CONTOURS,
-                                      landmark_drawing_spec=mp_drawing.DrawingSpec(color=(0, 255, 0), thickness=1, circle_radius=1))
+#     if results.multi_face_landmarks:
+#         num_faces = len(results.multi_face_landmarks)
+#         for face_landmarks in results.multi_face_landmarks:
+#             # Draw face landmarks
+#             mp_drawing.draw_landmarks(frame, face_landmarks, mp_face_mesh.FACEMESH_CONTOURS,
+#                                       landmark_drawing_spec=mp_drawing.DrawingSpec(color=(0, 255, 0), thickness=1, circle_radius=1))
             
-            # Get focus score based on gaze and head tilt
-            focus_score = calculate_focus(face_landmarks, frame.shape[1], frame.shape[0])
+#             # Get focus score based on gaze and head tilt
+#             focus_score = calculate_focus(face_landmarks, frame.shape[1], frame.shape[0])
             
-            # Analyze face emotion
-            try:
-                analysis = DeepFace.analyze(frame, actions=['emotion'], enforce_detection=False)
-                emotion = analysis[0]['dominant_emotion']
-            except:
-                emotion = "unknown"
+#             # Analyze face emotion
+#             try:
+#                 analysis = DeepFace.analyze(frame, actions=['emotion'], enforce_detection=False)
+#                 emotion = analysis[0]['dominant_emotion']
+#             except:
+#                 emotion = "unknown"
             
-            # Adjust focus score based on emotion
-            if emotion not in FOCUSED_EMOTIONS:
-                focus_score -= 20  # Reduce score if emotion is disengaged
-            focus_score = max(0, focus_score)  # Ensure focus score is not negative
+#             # Adjust focus score based on emotion
+#             if emotion not in FOCUSED_EMOTIONS:
+#                 focus_score -= 20  # Reduce score if emotion is disengaged
+#             focus_score = max(0, focus_score)  # Ensure focus score is not negative
             
-            # Display results on frame
-            text = f"Emotion: {emotion} | Focus Score: {focus_score}"
-            cv2.putText(frame, text, (30, 30 * (num_faces + 1)), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+#             # Display results on frame
+#             text = f"Emotion: {emotion} | Focus Score: {focus_score}"
+#             cv2.putText(frame, text, (30, 30 * (num_faces + 1)), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
             
-            # Log data
-            data_log.append([emotion, focus_score, num_faces])
+#             # Log data
+#             data_log.append([emotion, focus_score, num_faces])
 
-    return frame, num_faces, focus_score, emotion
+#     return frame, num_faces, focus_score, emotion
 
-# # Start webcam
-# cap = cv2.VideoCapture(0)
-# start_time = time.time()
+# # # Start webcam
+# # cap = cv2.VideoCapture(0)
+# # start_time = time.time()
 
-# while cap.isOpened():
-#     ret, frame = cap.read()
-#     if not ret:
-#         break
+# # while cap.isOpened():
+# #     ret, frame = cap.read()
+# #     if not ret:
+# #         break
     
-#     frame, num_faces = analyze_focus(frame)
-#     cv2.imshow("Focus Detection", frame)
+# #     frame, num_faces = analyze_focus(frame)
+# #     cv2.imshow("Focus Detection", frame)
     
-#     # Stop after a certain time (optional)
-#     if time.time() - start_time > 60:  # Run for 60 seconds
-#         break
+# #     # Stop after a certain time (optional)
+# #     if time.time() - start_time > 60:  # Run for 60 seconds
+# #         break
     
-#     if cv2.waitKey(1) & 0xFF == ord('q'):
-#         break
+# #     if cv2.waitKey(1) & 0xFF == ord('q'):
+# #         break
 
-# cap.release()
-# cv2.destroyAllWindows()
+# # cap.release()
+# # cv2.destroyAllWindows()
 
-# # Save results to CSV
-# df = pd.DataFrame(data_log, columns=["Emotion", "Focus Score", "No. of Faces"])
-# df.to_csv("focus_analysis.csv", index=False)
-# print("CSV file saved: focus_analysis.csv")
-def main():
-    # st.title("🔍 Real-Time Focus Detection")
-    # st.markdown("Detects engagement based on gaze & emotion.")
+# # # Save results to CSV
+# # df = pd.DataFrame(data_log, columns=["Emotion", "Focus Score", "No. of Faces"])
+# # df.to_csv("focus_analysis.csv", index=False)
+# # print("CSV file saved: focus_analysis.csv")
+# def main():
+#     # st.title("🔍 Real-Time Focus Detection")
+#     # st.markdown("Detects engagement based on gaze & emotion.")
     
-    # if st.button("Start Webcam"):
-        cap = cv2.VideoCapture(0)
-        start_time = time.time()
-        stframe = st.empty()
+#     # if st.button("Start Webcam"):
+#         cap = cv2.VideoCapture(0)
+#         start_time = time.time()
+#         stframe = st.empty()
         
-        while cap.isOpened():
-            ret, frame = cap.read()
-            if not ret:
-                break
-            frame, num_faces, focus_score, emotion = analyze_focus(frame)
+#         while cap.isOpened():
+#             ret, frame = cap.read()
+#             if not ret:
+#                 break
+#             frame, num_faces, focus_score, emotion = analyze_focus(frame)
             
-            # Display in Streamlit
-            stframe.image(frame, channels="BGR")
-            # st.write(f"**Emotion:** {emotion} | **Focus Score:** {focus_score} | **No. of Faces:** {num_faces}")
+#             # Display in Streamlit
+#             stframe.image(frame, channels="BGR")
+#             # st.write(f"**Emotion:** {emotion} | **Focus Score:** {focus_score} | **No. of Faces:** {num_faces}")
             
 
-            if time.time() - start_time > 120:
-                break
+#             if time.time() - start_time > 120:
+#                 break
 
-        cap.release()
-        df = pd.DataFrame(data_log, columns=["Emotion", "Focus Score", "No. of Faces"])
-        csv_file = tempfile.NamedTemporaryFile(delete=False, suffix=".csv").name
-        df.to_csv(csv_file, index=False)
-        st.success("Session complete! Download your focus analysis data below.")
-        st.download_button("Download CSV", csv_file, "focus_analysis.csv")
+#         cap.release()
+#         df = pd.DataFrame(data_log, columns=["Emotion", "Focus Score", "No. of Faces"])
+#         csv_file = tempfile.NamedTemporaryFile(delete=False, suffix=".csv").name
+#         df.to_csv(csv_file, index=False)
+#         st.success("Session complete! Download your focus analysis data below.")
+#         st.download_button("Download CSV", csv_file, "focus_analysis.csv")
         
 import streamlit as st
 import json
@@ -346,5 +346,5 @@ elif chat_mode == "Speech Chat":
             st.audio(audio_response_path, format="audio/mp3")
 
             # st.experimental_rerun()    
-if __name__ == "__main__":
-    main()
+# if __name__ == "__main__":
+#     main()
