@@ -1,10 +1,10 @@
 # import cv2
-import mediapipe as mp
-from deepface import DeepFace
-import pandas as pd
-import time
-import streamlit as st
-import tempfile
+# import mediapipe as mp
+# from deepface import DeepFace
+# import pandas as pd
+# import time
+# import streamlit as st
+# import tempfile
 
 # st.set_page_config(layout="wide")
 # # Initialize MediaPipe FaceMesh
