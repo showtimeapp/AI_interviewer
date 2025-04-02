@@ -132,6 +132,11 @@
 #         st.success("Session complete! Download your focus analysis data below.")
 #         st.download_button("Download CSV", csv_file, "focus_analysis.csv")
         
+import cv2
+import mediapipe as mp
+from deepface import DeepFace
+import pandas as pd
+import time
 import streamlit as st
 import json
 import tempfile
@@ -140,6 +145,126 @@ from pathlib import Path
 from groq import Groq
 from faster_whisper import WhisperModel
 from gtts import gTTS
+import torch
+
+# Initialize MediaPipe FaceMesh
+mp_face_mesh = mp.solutions.face_mesh
+face_mesh = mp_face_mesh.FaceMesh(min_detection_confidence=0.5, min_tracking_confidence=0.5)
+mp_drawing = mp.solutions.drawing_utils
+
+# Engagement emotions
+FOCUSED_EMOTIONS = ["happy", "neutral", "surprise"]
+data_log = []  # To store data for CSV export
+
+# Function to calculate gaze direction and head tilt
+def calculate_focus(face_landmarks, frame_width, frame_height):
+    left_eye_x = face_landmarks.landmark[33].x * frame_width  # Left eye corner
+    right_eye_x = face_landmarks.landmark[263].x * frame_width  # Right eye corner
+    nose_x = face_landmarks.landmark[1].x * frame_width  # Nose tip
+    nose_y = face_landmarks.landmark[1].y * frame_height  # Nose vertical position
+    chin_y = face_landmarks.landmark[152].y * frame_height  # Chin position
+    
+    head_tilt = abs(nose_y - chin_y)
+    
+    if left_eye_x < nose_x < right_eye_x:
+        gaze_score = 100  # Looking at the screen
+    elif nose_x < left_eye_x:
+        gaze_score = 60  # Looking left
+    else:
+        gaze_score = 60  # Looking right
+    
+    # Adjust score based on head tilt
+    if head_tilt > frame_height * 0.05:
+        gaze_score -= 20  # Reduce focus if head is tilted too much
+    
+    return max(0, gaze_score)
+
+def analyze_focus(frame):
+    rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    results = face_mesh.process(rgb_frame)
+    num_faces = 0
+    focus_score = 0
+    emotion = "no_face"
+    
+    if results.multi_face_landmarks:
+        num_faces = len(results.multi_face_landmarks)
+        for face_landmarks in results.multi_face_landmarks:
+            # Draw face landmarks
+            mp_drawing.draw_landmarks(frame, face_landmarks, mp_face_mesh.FACEMESH_CONTOURS,
+                                      landmark_drawing_spec=mp_drawing.DrawingSpec(color=(0, 255, 0), thickness=1, circle_radius=1))
+            
+            # Get focus score based on gaze and head tilt
+            focus_score = calculate_focus(face_landmarks, frame.shape[1], frame.shape[0])
+            
+            # Analyze face emotion
+            try:
+                analysis = DeepFace.analyze(frame, actions=['emotion'], enforce_detection=False)
+                emotion = analysis[0]['dominant_emotion']
+            except Exception as e:
+                st.warning(f"Error in emotion detection: {e}")
+                emotion = "unknown"
+            
+            # Adjust focus score based on emotion
+            if emotion not in FOCUSED_EMOTIONS:
+                focus_score -= 20  # Reduce score if emotion is disengaged
+            focus_score = max(0, focus_score)  # Ensure focus score is not negative
+            
+            # Display results on frame
+            text = f"Emotion: {emotion} | Focus Score: {focus_score}"
+            cv2.putText(frame, text, (30, 30 * (num_faces + 1)), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+    else: 
+        # No face detected
+        st.warning("No face detected. Please ensure you are in front of the camera.")
+        focus_score = 0
+        emotion = "no_face"
+    
+    # Log data
+    data_log.append([emotion, focus_score, num_faces])
+    
+    return frame, num_faces, focus_score, emotion
+
+def main():
+    # st.title("Focus Analysis")
+    
+    # if st.button("Start Webcam"):
+        cap = cv2.VideoCapture(0)
+        start_time = time.time()
+        stframe = st.empty()
+        
+        while cap.isOpened():
+            ret, frame = cap.read()
+            if not ret:
+                st.error("Failed to capture frame")
+                break
+            
+            frame, num_faces, focus_score, emotion = analyze_focus(frame)
+            
+            # Display in Streamlit
+            stframe.image(frame, channels="BGR")
+
+            if time.time() - start_time > 900:
+                break
+
+        cap.release()
+
+        # Convert data log to DataFrame
+        df = pd.DataFrame(data_log, columns=["Emotion", "Focus Score", "No. of Faces"])
+
+        # Save DataFrame to CSV
+        try:
+            csv_file = os.path.join(tempfile.gettempdir(), "focus_analysis.csv")
+            df.to_csv(csv_file, index=False)
+
+            st.success("Session complete! Download your focus analysis data below.")
+            with open(csv_file, "rb") as file:
+                st.download_button(
+                    label="Download CSV", 
+                    data=file, 
+                    file_name="focus_analysis.csv",
+                    mime="text/csv"
+                )
+        except Exception as e:
+            st.error(f"Error saving CSV: {e}")
 
 # Config - Set Your Groq API Key Here
 GROQ_API_KEY = "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"
@@ -223,10 +348,6 @@ def generate_audio(text):
 if "messages" not in st.session_state:
     st.session_state.messages =[{"role": "system", "content": generate_personality(domain)}]
 
-# Streamlit UI
-
-# st.write("🚀 Powered by Groq (LLaMA 3) + Whisper + gTTS")
-
 # Inject Custom HTML & CSS for Styling
 st.markdown("""
     <style>
@@ -248,11 +369,11 @@ st.markdown("""
         word-wrap: break-word;
     }
     .user-bubble {
-        background-color: #73fa97;
+        background-color: #d1e7dd;
         align-self: flex-end;
     }
     .bot-bubble {
-        background-color: #dbed39;
+        background-color: #f8d7da;
         align-self: flex-start;
     }
     .input-box {
@@ -293,29 +414,34 @@ st.markdown('</div>', unsafe_allow_html=True)
 
 # Text Chat Mode
 if chat_mode == "Text Chat":
-    
-    # user_input = st.text_input("Type your message:", key="text_input")
-    if st.button("Send"):
-        user_input = st.session_state.get("user_input", "").strip()  # Get input safely
-        
-        if user_input:
-            st.session_state.messages.append({"role": "user", "content": user_input})
-            
-            # Clear input to prevent duplicate triggers
-            st.session_state["user_input"] = ""
 
-            # Get AI response
-            response_text = groq_chat_completion(st.session_state.messages)
-            st.session_state.messages.append({"role": "assistant", "content": response_text})
-            
-            # Save history
-            save_history_to_json(st.session_state.messages)
-            
-            # Force refresh
-            st.rerun()
+    # Use session state to store and manage input
+    user_input = st.text_input("Your message:", key="chat_input")
+
+    # Slightly adjust button placement
+    st.write("") # Add a blank line to align with input
+    send_clicked = st.button("Send")
+    
+    # Process message when send is clicked
+    if send_clicked and user_input:
+        # Add user message to session state
+        st.session_state.messages.append({"role": "user", "content": user_input})
+        
+        # Get AI response
+        response_text = groq_chat_completion(st.session_state.messages)
+        st.session_state.messages.append({"role": "assistant", "content": response_text})
+        
+        # Save history
+        save_history_to_json(st.session_state.messages)
+        
+        # Clear the input (this approach avoids modifying session state directly)
+        st.experimental_set_query_params(chat_input="")
+        
+        # Force refresh
+        st.rerun()
 
 # Store text input in session state
-    st.text_input("Your message:", key="user_input")
+    # st.text_input("Your message:", key="user_input")
 
 # Speech Chat Mode
 elif chat_mode == "Speech Chat":
@@ -346,5 +472,5 @@ elif chat_mode == "Speech Chat":
             st.audio(audio_response_path, format="audio/mp3")
 
             # st.experimental_rerun()    
-# if __name__ == "__main__":
-#     main()
+if __name__ == "__main__":
+    main()
